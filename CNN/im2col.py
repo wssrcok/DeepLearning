@@ -1,13 +1,14 @@
 import numpy as np
 
-
+# (1,1,5,5), h = 3, w = 3, 2, 1
 def get_im2col_indices(x_shape, field_height, field_width, padding=1, stride=1):
   # First figure out what the size of the output should be
   N, C, H, W = x_shape
+  #(1,1,5,5)
   assert (H + 2 * padding - field_height) % stride == 0
   assert (W + 2 * padding - field_height) % stride == 0
-  out_height = (H + 2 * padding - field_height) // stride + 1 # changed division '/' to '//' by sam shen
-  out_width = (W + 2 * padding - field_width) // stride + 1 # changed division '/' to '//' by sam shen
+  out_height = (H + 2 * padding - field_height) // stride + 1
+  out_width = (W + 2 * padding - field_width) // stride + 1
 
   i0 = np.repeat(np.arange(field_height), field_width)
   i0 = np.tile(i0, C)
@@ -27,10 +28,8 @@ def im2col_indices(x, field_height, field_width, padding=1, stride=1):
   # Zero-pad the input
   p = padding
   x_padded = np.pad(x, ((0, 0), (0, 0), (p, p), (p, p)), mode='constant')
-
   k, i, j = get_im2col_indices(x.shape, field_height, field_width, padding,
                                stride)
-
   cols = x_padded[:, k, i, j]
   C = x.shape[1]
   cols = cols.transpose(1, 2, 0).reshape(field_height * field_width * C, -1)
