@@ -10,7 +10,6 @@ np.random.seed(2)
 
 def conv_forward(A_prev, W, b, hparameters):
 	# W's shape used to be (f, f, n_C_prev, n_C)
-	W = W.transpose(3,2,0,1)
 	n_C, n_C_prev, f, f = W.shape
 	# A_prev's shape used to be: (m, n_H_prev, n_W_prev, n_C_prev)
 	m, n_C_prev, n_H_prev, n_W_prev = A_prev.shape
@@ -19,7 +18,6 @@ def conv_forward(A_prev, W, b, hparameters):
 	pad = hparameters['pad']
 	A_prev_col = im2col_indices(A_prev, f, f, padding=pad, stride=stride)
 	W_col = W.reshape(n_C, -1)
-	b = b.reshape(n_C,1)
 
 	Z = W_col @ A_prev_col + b
 
@@ -33,9 +31,6 @@ def conv_forward(A_prev, W, b, hparameters):
 
 	A, old_Z = relu(Z)
 
-	# turn every shape back to what I learned from coursera.
-	W = W.transpose(2,3,1,0)
-	b = b.reshape(1,1,1,n_C)
 
 	cache = (A_prev, W, b, hparameters, A_prev_col, old_Z)
 	return A, cache
@@ -90,7 +85,6 @@ def conv_backward(dZ, cache):
 	#cache have the dimension: (A_prev, W, b, hparameters, A_prev_col)
 	A_prev, W, b, hparameters, A_prev_col = cache
 	# W.shape used to be (f,f,n_C_prev, n_C)
-	W = W.transpose(3,2,0,1)
 	n_C, n_C_prev, f, f = W.shape
 
 	#dZ -- numpy array of shape (m, n_H, n_W, n_C) 
@@ -108,10 +102,6 @@ def conv_backward(dZ, cache):
 	W_reshape = W.reshape(n_C, -1)
 	dA_prev_col = W_reshape.T @ dZ_reshaped
 	dA_prev = col2im_indices(dA_prev_col, A_prev.shape, f, f, padding=pad, stride=stride)
-
-	dW = dW.transpose(2,3,1,0)
-	#dA_prev's shape is already good
-	db = db.reshape(1,1,1,n_C)
 	return dA_prev, dW, db
 
 
@@ -162,12 +152,12 @@ def initialize_parameters_filter(filter_dim):
     caches -- list of caches containing:
                 every cache of linear_act
     '''
-    f1, f1, n_C_prev1, n_C1 = filter_dim[0]
-    W1 = np.random.randn(f1,f1,n_C_prev1, n_C1) * 0.01
-    b1 = np.zeros((1,1,1,n_C1))
-    f3, f3, n_C_prev3, n_C3 = filter_dim[1]
-    W3 = np.random.randn(f3,f3,n_C_prev3, n_C3) * 0.01
-    b3 = np.zeros((1,1,1,n_C3))
+    n_C1, n_C_prev1, f1, f1 = filter_dim[0]
+    W1 = np.random.randn(n_C1, n_C_prev1, f1, f1) * 0.01
+    b1 = np.zeros((n_C1,1))
+    n_C3, n_C_prev3, f3, f3 = filter_dim[1]
+    W3 = np.random.randn(n_C3, n_C_prev3, f3, f3) * 0.01
+    b3 = np.zeros((n_C3,1))
     parameters = {'W1':W1, 'b1':b1, 'W3':W3, 'b3':b3}
     return parameters
 
