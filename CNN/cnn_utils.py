@@ -6,67 +6,17 @@ plt.rcParams['figure.figsize'] = (5.0, 4.0) # set default size of plots
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
-np.random.seed(1)
-
-# GRADED FUNCTION: zero_pad
-
-def zero_pad(X, pad):
-    """
-    Pad with zeros all images of the dataset X. The padding is applied to the height and width of an image, 
-    as illustrated in Figure 1.
-    
-    Argument:
-    X -- python numpy array of shape (m, n_H, n_W, n_C) representing a batch of m images
-    pad -- integer, amount of padding around each image on vertical and horizontal dimensions
-    
-    Returns:
-    X_pad -- padded image of shape (m, n_H + 2*pad, n_W + 2*pad, n_C)
-    """
-    
-    ### START CODE HERE ### (≈ 1 line)
-    X_pad = np.pad(X, ((0,0), (pad,pad), (pad,pad), (0,0)), 'constant', constant_values = (0,0))
-    ### END CODE HERE ###
-    
-    return X_pad
-
-# GRADED FUNCTION: conv_single_step
-
-def conv_single_step(a_slice_prev, W, b):
-    """
-    Apply one filter defined by parameters W on a single slice (a_slice_prev) of the output activation 
-    of the previous layer.
-    
-    Arguments:
-    a_slice_prev -- slice of input data of shape (f, f, n_C_prev)
-    W -- Weight parameters contained in a window - matrix of shape (f, f, n_C_prev)
-    b -- Bias parameters contained in a window - matrix of shape (1, 1, 1)
-    
-    Returns:
-    Z -- a scalar value, result of convolving the sliding window (W, b) on a slice x of the input data
-    """
-
-    ### START CODE HERE ### (≈ 2 lines of code)
-    # Element-wise product between a_slice and W. Do not add the bias yet.
-    s = a_slice_prev * W
-    # Sum over all entries of the volume s.
-    Z = np.sum(s)
-    # Add bias b to Z. Cast b to a float() so that Z results in a scalar value.
-    Z = Z + float(b)
-    ### END CODE HERE ###
-
-    return Z
+np.random.seed(2)
 
 def conv_forward(A_prev, W, b, hparameters):
 	# W's shape used to be (f, f, n_C_prev, n_C)
 	W = W.transpose(3,2,0,1)
 	n_C, n_C_prev, f, f = W.shape
 	# A_prev's shape used to be: (m, n_H_prev, n_W_prev, n_C_prev)
-	A_prev = A_prev.transpose(0,3,1,2)
 	m, n_C_prev, n_H_prev, n_W_prev = A_prev.shape
 
 	stride = hparameters['stride']
 	pad = hparameters['pad']
-
 	A_prev_col = im2col_indices(A_prev, f, f, padding=pad, stride=stride)
 	W_col = W.reshape(n_C, -1)
 	b = b.reshape(n_C,1)
@@ -85,13 +35,9 @@ def conv_forward(A_prev, W, b, hparameters):
 
 	# turn every shape back to what I learned from coursera.
 	W = W.transpose(2,3,1,0)
-	A_prev = A_prev.transpose(0,2,3,1)
 	b = b.reshape(1,1,1,n_C)
-	A = A.transpose(0,2,3,1)
-	old_Z = old_Z.transpose(0,2,3,1)
 
 	cache = (A_prev, W, b, hparameters, A_prev_col, old_Z)
-
 	return A, cache
 
 
@@ -101,8 +47,7 @@ def pool_forward(A_prev, hparameters):
 	# i.e. result of 10 filters of 3x3 applied to 5 imgs of 28x28 with stride = 1 and padding = 1
 
 	# First, reshape it to 50x1x28x28 to make im2col arranges it fully in column
-	(m, n_H_prev, n_W_prev, n_C_prev) = A_prev.shape
-	A_prev = A_prev.transpose(0,3,1,2)
+	(m, n_C_prev, n_H_prev, n_W_prev) = A_prev.shape
 	A_prev_reshaped = A_prev.reshape(m * n_C_prev, 1, n_H_prev, n_W_prev)
 
 	f = hparameters["f"]
@@ -122,13 +67,10 @@ def pool_forward(A_prev, hparameters):
 	A = A.reshape(n_H_prev//f, n_W_prev//f, m, n_C_prev)
 
 	# Transpose to get 5x10x14x14 output
-	A = A.transpose(2, 3, 0, 1)
+	A = A.transpose(2, 3, 1, 0)
 	# now A is shape (m,n_C_prev, n_H, n_W)
-	A = A.transpose(0,2,3,1)
-	A_prev = A_prev.transpose(0,2,3,1)
 	
 	cache = (A_prev, A_prev_col, max_idx, hparameters)
-
 	return A, cache
 
 def conv_backward(dZ, cache):
@@ -153,7 +95,6 @@ def conv_backward(dZ, cache):
 
 	#dZ -- numpy array of shape (m, n_H, n_W, n_C) 
 	# however, we want dZ to be (m, n_C, n_H, n_W) 
-	dZ = dZ.transpose(0,3,1,2)
 
 	db = np.sum(dZ, axis=(0, 2, 3))
 	db = db.reshape(n_C, -1)
@@ -205,11 +146,7 @@ def pool_backward(dA, cache):
 	# dX would be 50x1x28x28
 	dA_prev = col2im_indices(dA_prev_col, (m * n_C, 1, n_H*f, n_W*f), f, f, padding=0, stride=stride)
 
-	# Reshape back to match the input dimension: 5x10x28x28
-	A_prev = A_prev.transpose(0,3,1,2)
 	dA_prev = dA_prev.reshape(A_prev.shape)
-
-	dA_prev = dA_prev.transpose(0,2,3,1)
 
 	return dA_prev
 
@@ -323,7 +260,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, parameters = {}, paramet
             input_batch = input_layer[j*batch_size:(j+1)*batch_size]
             A4, conv_caches = two_conv_pool_layer_forward(input_batch, parameters_conv)
             #flatten
-            A4 = A4.reshape(-1,7*7*64).T
+            A4 = A4.reshape(batch_size,-1).T
             # Forward propagation: [LINEAR -> RELU]*(L-1) -> LINEAR -> SIGMOID.
             # AL is the output and caches contains Z, A, W, b for each layer
             AL, caches = L_model_forward(A4, parameters)
