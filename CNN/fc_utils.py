@@ -2,6 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
+def truncate_bit(np_arr, bits):
+    np_arr *= ((2<<bits)/0.8)
+    np_arr = np.trunc(np_arr)
+    np_arr /= ((2<<bits)/0.8)
+    return np_arr
+
 def sigmoid(Z):
     """
     Implements the sigmoid activation in numpy
@@ -137,7 +143,7 @@ def initialize_parameters_deep(layer_dims):
     return parameters
 
 
-def linear_forward(A, W, b):
+def linear_forward(A, W, b, truncate = 0):
     """
     Implement the linear part of a layer's forward propagation.
 
@@ -154,13 +160,14 @@ def linear_forward(A, W, b):
     ### START CODE HERE ### (≈ 1 line of code)
     Z = np.dot(W,A)+b
     ### END CODE HERE ###
-    
+    if truncate:
+        Z = truncate_bit(Z, truncate)
     assert(Z.shape == (W.shape[0], A.shape[1]))
     cache = (A, W, b)
     
     return Z, cache
 
-def linear_activation_forward(A_prev, W, b, activation):
+def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
     """
     Implement the forward propagation for the LINEAR->ACTIVATION layer
 
@@ -179,26 +186,28 @@ def linear_activation_forward(A_prev, W, b, activation):
     if activation == "sigmoid":
         # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
         ### START CODE HERE ### (≈ 2 lines of code)
-        Z, linear_cache = linear_forward(A_prev,W,b)
+        Z, linear_cache = linear_forward(A_prev,W,b, truncate = truncate)
         A, activation_cache = sigmoid(Z)
         ### END CODE HERE ###
     
     elif activation == "relu":
         # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
         ### START CODE HERE ### (≈ 2 lines of code)
-        Z, linear_cache = linear_forward(A_prev,W,b)
+        Z, linear_cache = linear_forward(A_prev,W,b,truncate = truncate)
         A, activation_cache = relu(Z)
         ### END CODE HERE ###
     elif activation == "softmax":
-        Z, linear_cache = linear_forward(A_prev,W,b)
+        Z, linear_cache = linear_forward(A_prev,W,b,truncate = truncate)
+        print(Z[:,3])
         A, activation_cache = softmax(Z)
-        
+        print(A[:,3])
     assert (A.shape == (W.shape[0], A_prev.shape[1]))
     cache = (linear_cache, activation_cache)
-
+    if truncate:
+        A = truncate_bit(A, truncate)
     return A, cache
 
-def L_model_forward(X, parameters):
+def L_model_forward(X, parameters, truncate = 0):
     """
     Implement forward propagation for the [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID computation
     
@@ -222,13 +231,15 @@ def L_model_forward(X, parameters):
         ### START CODE HERE ### (≈ 2 lines of code)
         A, cache = linear_activation_forward(A_prev, parameters['W' + str(l)], 
                                              parameters['b' + str(l)], "relu")
+        if truncate:
+            A = truncate_bit(A, truncate)
         caches.append(cache)
         ### END CODE HERE ###
     
     # Implement LINEAR -> SIGMOID. Add "cache" to the "caches" list.
     ### START CODE HERE ### (≈ 2 lines of code)
     AL, cache = linear_activation_forward(A, parameters['W' + str(L)], 
-                                          parameters['b' + str(L)], "softmax")
+                                          parameters['b' + str(L)], "softmax", truncate = truncate)
     caches.append(cache)
     ### END CODE HERE ###
     
@@ -375,7 +386,7 @@ def L_model_backward(AL, Y, caches):
 
     return grads
 
-def update_parameters(parameters, grads, learning_rate):
+def update_parameters(parameters, grads, learning_rate, truncate = 0):
     """
     Update parameters using gradient descent
     
@@ -396,6 +407,9 @@ def update_parameters(parameters, grads, learning_rate):
     for l in range(L):
         parameters["W" + str(l+1)] -= learning_rate * grads['dW'+str(l+1)]
         parameters["b" + str(l+1)] -= learning_rate * grads['db'+str(l+1)]
+        if truncate:
+            parameters["W" + str(l+1)] = truncate_bit(parameters["W" + str(l+1)], truncate)
+            parameters["b" + str(l+1)] = truncate_bit(parameters["b" + str(l+1)], truncate)
     ### END CODE HERE ###
     return parameters
 

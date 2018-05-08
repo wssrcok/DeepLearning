@@ -8,7 +8,8 @@ plt.rcParams['image.cmap'] = 'gray'
 
 np.random.seed(2)
 
-def conv_forward(A_prev, W, b, hparameters):
+
+def conv_forward(A_prev, W, b, hparameters, truncate = 0):
 	# W's shape used to be (f, f, n_C_prev, n_C)
 	n_C, n_C_prev, f, f = W.shape
 	# A_prev's shape used to be: (m, n_H_prev, n_W_prev, n_C_prev)
@@ -30,9 +31,10 @@ def conv_forward(A_prev, W, b, hparameters):
 	# now Z.shape is (m, n_C, n_H_shape, n_W_shape)
 
 	A, old_Z = relu(Z)
-
-
 	cache = (A_prev, W, b, hparameters, A_prev_col, old_Z)
+
+	if truncate:
+		A = truncate_bit(A, truncate)
 	return A, cache
 
 
@@ -142,40 +144,46 @@ def pool_backward(dA, cache):
 
 
 
-def initialize_parameters_filter(filter_dim):
-    '''
-    building a filter
-    Arguments:
-    filter_dim -- dimension of filter:[(f,f,n_C_prev, n_C),(f,f,n_C_prev, n_C)]
-    Returns:
-    W -- 
-    caches -- list of caches containing:
-                every cache of linear_act
-    '''
-    n_C1, n_C_prev1, f1, f1 = filter_dim[0]
-    W1 = np.random.randn(n_C1, n_C_prev1, f1, f1) * 0.01
-    b1 = np.zeros((n_C1,1))
-    n_C3, n_C_prev3, f3, f3 = filter_dim[1]
-    W3 = np.random.randn(n_C3, n_C_prev3, f3, f3) * 0.01
-    b3 = np.zeros((n_C3,1))
-    parameters = {'W1':W1, 'b1':b1, 'W3':W3, 'b3':b3}
-    return parameters
+def initialize_parameters_filter(filter_dim, truncate = 0):
+	'''
+	building a filter
+	Arguments:
+	filter_dim -- dimension of filter:[(f,f,n_C_prev, n_C),(f,f,n_C_prev, n_C)]
+	Returns:
+	W -- 
+	caches -- list of caches containing:
+	            every cache of linear_act
+	'''
+	n_C1, n_C_prev1, f1, f1 = filter_dim[0]
+	W1 = np.random.randn(n_C1, n_C_prev1, f1, f1) * 0.01
+	b1 = np.zeros((n_C1,1))
+	n_C3, n_C_prev3, f3, f3 = filter_dim[1]
+	W3 = np.random.randn(n_C3, n_C_prev3, f3, f3) * 0.01
+	b3 = np.zeros((n_C3,1))
+	if truncate:
+		W1 = truncate_bit(W1, truncate)
+		b1 = truncate_bit(b1, truncate)
+		W3 = truncate_bit(W3, truncate)
+		b3 = truncate_bit(b3, truncate)
+	parameters = {'W1':W1, 'b1':b1, 'W3':W3, 'b3':b3}
+	return parameters
 
-def two_conv_pool_layer_forward(input_layer, parameters):
+def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
     caches = []
     W1 = parameters['W1']
     b1 = parameters['b1']
     W3 = parameters['W3']
     b3 = parameters['b3']
     hparameters = {'stride': 1, 'pad': 2}
-    A1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters)
+    A1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters, truncate = truncate)
     caches.append(conv_cache1)
+    #splt.imshow(A1[0,0])
     hparameters = {'f': 2, 'stride': 2}
     A2, pool_cache2 = pool_forward(A1, hparameters)
     caches.append(pool_cache2)
 #     plt.imshow(A2[0,:,:,0]*5000)
     hparameters = {'stride': 1, 'pad': 2}
-    A3, conv_cache3 = conv_forward(A2, W3, b3, hparameters)
+    A3, conv_cache3 = conv_forward(A2, W3, b3, hparameters, truncate = truncate)
     caches.append(conv_cache3)
     hparameters = {'f': 2, 'stride': 2}
     A4, pool_cache4 = pool_forward(A3, hparameters)
@@ -208,16 +216,21 @@ def two_conv_pool_layer_backward(dA4, caches):
     
     return conv_grads
 
-def update_conv_parameters(parameters, grads, learning_rate):
-    '''
-    '''
-    parameters['W3'] -= learning_rate * grads['dW3']
-    parameters['b3'] -= learning_rate * grads['db3']
-    parameters['W1'] -= learning_rate * grads['dW1']
-    parameters['b1'] -= learning_rate * grads['db1']
-    return parameters
+def update_conv_parameters(parameters, grads, learning_rate, truncate = 0):
+	'''
+	'''
+	parameters['W3'] -= learning_rate * grads['dW3']
+	parameters['b3'] -= learning_rate * grads['db3']
+	parameters['W1'] -= learning_rate * grads['dW1']
+	parameters['b1'] -= learning_rate * grads['db1']
+	if truncate:
+		parameters['W3'] = truncate_bit(parameters['W3'], truncate)
+		parameters['b3'] = truncate_bit(parameters['b3'], truncate)
+		parameters['W1'] = truncate_bit(parameters['W1'], truncate)
+		parameters['b1'] = truncate_bit(parameters['b1'], truncate)
+	return parameters
     
-def cnn_model(input_layer, Y, filter_dims, layers_dims, parameters = {}, parameters_conv = {}, batch_size = 64, learning_rate = 0.0075, num_iterations = 3000, print_cost=False):
+def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters = {}, parameters_conv = {}, batch_size = 64, learning_rate = 0.0075, num_iterations = 3000, print_cost=False):
     """
     Implements a L-layer neural network: [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID.
     
@@ -248,12 +261,13 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, parameters = {}, paramet
         for j in range(num_batchs):
             # conv forward
             input_batch = input_layer[j*batch_size:(j+1)*batch_size]
-            A4, conv_caches = two_conv_pool_layer_forward(input_batch, parameters_conv)
+            A4, conv_caches = two_conv_pool_layer_forward(input_batch, parameters_conv, truncate = truncate)
             #flatten
             A4 = A4.reshape(batch_size,-1).T
             # Forward propagation: [LINEAR -> RELU]*(L-1) -> LINEAR -> SIGMOID.
             # AL is the output and caches contains Z, A, W, b for each layer
-            AL, caches = L_model_forward(A4, parameters)
+            AL, caches = L_model_forward(A4, parameters, truncate = truncate)
+            #print(AL[:,3])
             # Compute cost.
             cost = compute_cost(AL,Y[:, j*batch_size:(j+1)*batch_size])
             # Backward propagation.
@@ -262,8 +276,8 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, parameters = {}, paramet
             dA4 = grads['dA0'].T
             conv_grads = two_conv_pool_layer_backward(dA4, conv_caches)
             # Update parameters.
-            parameters = update_parameters(parameters, grads, learning_rate)
-            parameters_conv = update_conv_parameters(parameters_conv, conv_grads, learning_rate)
+            parameters = update_parameters(parameters, grads, learning_rate, truncate = truncate)
+            parameters_conv = update_conv_parameters(parameters_conv, conv_grads, learning_rate, truncate = truncate)
             # Print the cost every 30 training example
             if print_cost:# and j % 300 == 0:
                 print ("Cost after iteration %i, batch %i: %f" %(i, j, cost))
