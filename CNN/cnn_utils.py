@@ -165,6 +165,7 @@ def initialize_parameters_filter(filter_dim, truncate = 0):
 		b1 = truncate_bit(b1, truncate)
 		W3 = truncate_bit(W3, truncate)
 		b3 = truncate_bit(b3, truncate)
+	#print(W1[0,0])
 	parameters = {'W1':W1, 'b1':b1, 'W3':W3, 'b3':b3}
 	return parameters
 
@@ -251,7 +252,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
     
     # Parameters initialization. (≈ 1 line of code)
     if len(parameters) == 0:
-        parameters_conv = initialize_parameters_filter(filter_dims)
+        parameters_conv = initialize_parameters_filter(filter_dims, truncate = truncate)
         parameters = initialize_parameters_deep(layers_dims)
     m = input_layer.shape[0]
     num_batchs = m // batch_size

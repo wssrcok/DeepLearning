@@ -198,9 +198,9 @@ def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
         ### END CODE HERE ###
     elif activation == "softmax":
         Z, linear_cache = linear_forward(A_prev,W,b,truncate = truncate)
-        print(Z[:,3])
+        #print(Z[:,3])
         A, activation_cache = softmax(Z)
-        print(A[:,3])
+        #print(A[:,3])
     assert (A.shape == (W.shape[0], A_prev.shape[1]))
     cache = (linear_cache, activation_cache)
     if truncate:
