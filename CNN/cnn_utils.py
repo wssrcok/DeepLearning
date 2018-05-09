@@ -178,7 +178,7 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
     hparameters = {'stride': 1, 'pad': 2}
     A1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters, truncate = truncate)
     caches.append(conv_cache1)
-    #splt.imshow(A1[0,0])
+    #plt.imshow(A1[0,0])
     hparameters = {'f': 2, 'stride': 2}
     A2, pool_cache2 = pool_forward(A1, hparameters)
     caches.append(pool_cache2)
@@ -268,7 +268,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             # Forward propagation: [LINEAR -> RELU]*(L-1) -> LINEAR -> SIGMOID.
             # AL is the output and caches contains Z, A, W, b for each layer
             AL, caches = L_model_forward(A4, parameters, truncate = truncate)
-            #print(AL[:,3])
+            #print(AL[:,0])
             # Compute cost.
             cost = compute_cost(AL,Y[:, j*batch_size:(j+1)*batch_size])
             # Backward propagation.
@@ -279,6 +279,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             # Update parameters.
             parameters = update_parameters(parameters, grads, learning_rate, truncate = truncate)
             parameters_conv = update_conv_parameters(parameters_conv, conv_grads, learning_rate, truncate = truncate)
+            print(parameters_conv['W1'][0,0])
             # Print the cost every 30 training example
             if print_cost:# and j % 300 == 0:
                 print ("Cost after iteration %i, batch %i: %f" %(i, j, cost))

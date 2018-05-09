@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import time
 
 def truncate_bit(np_arr, bits):
-    np_arr *= ((2<<bits)/0.8)
+    weights_range = 0.8
+    np_arr *= ((2<<bits)/weights_range)
     np_arr = np.trunc(np_arr)
-    np_arr /= ((2<<bits)/0.8)
+    np_arr /= ((2<<bits)/weights_range)
     return np_arr
 
 def sigmoid(Z):
@@ -198,7 +199,7 @@ def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
         ### END CODE HERE ###
     elif activation == "softmax":
         Z, linear_cache = linear_forward(A_prev,W,b,truncate = truncate)
-        #print(Z[:,3])
+        #print(Z[:,0])
         A, activation_cache = softmax(Z)
         #print(A[:,3])
     assert (A.shape == (W.shape[0], A_prev.shape[1]))
