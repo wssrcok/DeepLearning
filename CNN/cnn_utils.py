@@ -6,7 +6,7 @@ plt.rcParams['figure.figsize'] = (5.0, 4.0) # set default size of plots
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
-np.random.seed(2)
+np.random.seed(3)
 
 
 def conv_forward(A_prev, W, b, hparameters, truncate = 0):
@@ -155,10 +155,10 @@ def initialize_parameters_filter(filter_dim, truncate = 0):
 	            every cache of linear_act
 	'''
 	n_C1, n_C_prev1, f1, f1 = filter_dim[0]
-	W1 = np.random.randn(n_C1, n_C_prev1, f1, f1) * 0.01
+	W1 = np.random.randn(n_C1, n_C_prev1, f1, f1) * 0.05
 	b1 = np.zeros((n_C1,1))
 	n_C3, n_C_prev3, f3, f3 = filter_dim[1]
-	W3 = np.random.randn(n_C3, n_C_prev3, f3, f3) * 0.01
+	W3 = np.random.randn(n_C3, n_C_prev3, f3, f3) * 0.05
 	b3 = np.zeros((n_C3,1))
 	if truncate:
 		W1 = truncate_bit(W1, truncate)
@@ -269,6 +269,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             # AL is the output and caches contains Z, A, W, b for each layer
             AL, caches = L_model_forward(A4, parameters, truncate = truncate)
             #print(AL[:,0])
+            AL = np.where(AL == 0, 0.0015625,AL)
             # Compute cost.
             cost = compute_cost(AL,Y[:, j*batch_size:(j+1)*batch_size])
             # Backward propagation.
@@ -279,7 +280,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             # Update parameters.
             parameters = update_parameters(parameters, grads, learning_rate, truncate = truncate)
             parameters_conv = update_conv_parameters(parameters_conv, conv_grads, learning_rate, truncate = truncate)
-            print(parameters_conv['W1'][0,0])
+            #print(parameters_conv['W1'][0,0])
             # Print the cost every 30 training example
             if print_cost:# and j % 300 == 0:
                 print ("Cost after iteration %i, batch %i: %f" %(i, j, cost))

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import time
 
 def truncate_bit(np_arr, bits):
-    weights_range = 0.8
+    weights_range = 0.4
     np_arr *= ((2<<bits)/weights_range)
     np_arr = np.trunc(np_arr)
     np_arr /= ((2<<bits)/weights_range)
