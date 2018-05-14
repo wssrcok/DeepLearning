@@ -220,15 +220,21 @@ def two_conv_pool_layer_backward(dA4, caches):
 def update_conv_parameters(parameters, grads, learning_rate, truncate = 0):
 	'''
 	'''
+	# print('weights on third layer first training example first channel:\n', parameters['W3'][0,0])
+	# print('learning rate:', learning_rate)
+	# print('gradent for this weights:\n', grads['dW3'][0,0])
 	parameters['W3'] -= learning_rate * grads['dW3']
 	parameters['b3'] -= learning_rate * grads['db3']
 	parameters['W1'] -= learning_rate * grads['dW1']
 	parameters['b1'] -= learning_rate * grads['db1']
+	# print('before subtract:\n', learning_rate * grads['dW3'][0,0])
+	# print('weights after update:\n', parameters['W3'][0,0])
 	if truncate:
 		parameters['W3'] = truncate_bit(parameters['W3'], truncate)
 		parameters['b3'] = truncate_bit(parameters['b3'], truncate)
 		parameters['W1'] = truncate_bit(parameters['W1'], truncate)
 		parameters['b1'] = truncate_bit(parameters['b1'], truncate)
+		# print('weights after truncate:\n', parameters['W3'][0,0])
 	return parameters
     
 def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters = {}, parameters_conv = {}, batch_size = 64, learning_rate = 0.0075, num_iterations = 3000, print_cost=False):
@@ -269,7 +275,9 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             # AL is the output and caches contains Z, A, W, b for each layer
             AL, caches = L_model_forward(A4, parameters, truncate = truncate)
             #print(AL[:,0])
+            # prevent divide by zero occur.
             AL = np.where(AL == 0, 0.0015625,AL)
+            #AL = np.where(AL == 1, 0.0015625,AL)
             # Compute cost.
             cost = compute_cost(AL,Y[:, j*batch_size:(j+1)*batch_size])
             # Backward propagation.

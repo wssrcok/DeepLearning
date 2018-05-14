@@ -2,11 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
-def truncate_bit(np_arr, bits):
-    weights_range = 0.4
-    np_arr *= ((2<<bits)/weights_range)
-    np_arr = np.trunc(np_arr)
-    np_arr /= ((2<<bits)/weights_range)
+def truncate_bit(np_arr, bits, weights_range = 0.4):
+    np_arr *= ((1<<bits)/weights_range)
+    np_arr = np.round(np_arr)
+    np_arr = np.where(np_arr > 255, 255, np_arr)
+    np_arr /= ((1<<bits)/weights_range)
     return np_arr
 
 def sigmoid(Z):
@@ -232,8 +232,7 @@ def L_model_forward(X, parameters, truncate = 0):
         ### START CODE HERE ### (≈ 2 lines of code)
         A, cache = linear_activation_forward(A_prev, parameters['W' + str(l)], 
                                              parameters['b' + str(l)], "relu")
-        if truncate:
-            A = truncate_bit(A, truncate)
+        # A is truncated in the function
         caches.append(cache)
         ### END CODE HERE ###
     
@@ -241,9 +240,9 @@ def L_model_forward(X, parameters, truncate = 0):
     ### START CODE HERE ### (≈ 2 lines of code)
     AL, cache = linear_activation_forward(A, parameters['W' + str(L)], 
                                           parameters['b' + str(L)], "softmax", truncate = truncate)
+    # A is truncated in the function
     caches.append(cache)
     ### END CODE HERE ###
-    
             
     return AL, caches
 
@@ -363,6 +362,7 @@ def L_model_backward(AL, Y, caches):
     
     # Initializing the backpropagation
     ### START CODE HERE ### (1 line of code)
+
     dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL)) 
     ### END CODE HERE ###
     
