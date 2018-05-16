@@ -33,9 +33,6 @@ def conv_forward(A_prev, W, b, hparameters, truncate = 0):
 
 	A, old_Z = relu(Z)
 	cache = (A_prev, W, b, hparameters, A_prev_col, old_Z)
-
-	if truncate:
-		A = truncate_io(A)
 	return A, cache
 
 
@@ -65,7 +62,7 @@ def pool_forward(A_prev, hparameters):
 	A = A.reshape(n_H_prev//f, n_W_prev//f, m, n_C_prev)
 
 	# Transpose to get 5x10x14x14 output
-	A = A.transpose(2, 3, 1, 0)
+	A = A.transpose(2, 3, 0, 1)
 	# now A is shape (m,n_C_prev, n_H, n_W)
 	
 	cache = (A_prev, A_prev_col, max_idx, hparameters)

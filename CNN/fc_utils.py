@@ -35,7 +35,8 @@ def relu(Z, truncate = False):
     assert(A.shape == Z.shape)
     
     cache = Z 
-
+    if truncate:
+        A = truncate_io(A)
     return A, cache
   
 def softmax(Z):
@@ -156,8 +157,6 @@ def linear_forward(A, W, b, truncate = 0):
     ### START CODE HERE ### (≈ 1 line of code)
     Z = np.dot(W,A)+b
     ### END CODE HERE ###
-    if truncate:
-        Z = truncate_io(Z)
     assert(Z.shape == (W.shape[0], A.shape[1]))
     cache = (A, W, b)
     
@@ -199,8 +198,6 @@ def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
         #print(A[:,3])
     assert (A.shape == (W.shape[0], A_prev.shape[1]))
     cache = (linear_cache, activation_cache)
-    if truncate:
-        A = truncate_io(A)
     return A, cache
 
 def L_model_forward(X, parameters, truncate = 0):

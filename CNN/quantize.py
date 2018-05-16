@@ -9,7 +9,7 @@ import numpy as np
 #     np_arr /= (n/weights_range)
 #     return np_arr
 
-def truncate_weights(w, bits, weights_range = 2):
+def truncate_weights(w, bits, weights_range = 0.5):
     n = (1<<bits)/weights_range
     q = np.clip(np.round(n * w)/n, -weights_range/2, weights_range/2-1/n)
     return q
