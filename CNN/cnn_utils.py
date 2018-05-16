@@ -1,5 +1,6 @@
 import numpy as np
 from fc_utils import *
+from quantize import *
 import matplotlib.pyplot as plt
 from im2col import *
 plt.rcParams['figure.figsize'] = (5.0, 4.0) # set default size of plots
@@ -34,7 +35,7 @@ def conv_forward(A_prev, W, b, hparameters, truncate = 0):
 	cache = (A_prev, W, b, hparameters, A_prev_col, old_Z)
 
 	if truncate:
-		A = truncate_bit(A, truncate)
+		A = truncate_io(A)
 	return A, cache
 
 
@@ -161,10 +162,10 @@ def initialize_parameters_filter(filter_dim, truncate = 0):
 	W3 = np.random.randn(n_C3, n_C_prev3, f3, f3) * 0.05
 	b3 = np.zeros((n_C3,1))
 	if truncate:
-		W1 = truncate_bit(W1, truncate)
-		b1 = truncate_bit(b1, truncate)
-		W3 = truncate_bit(W3, truncate)
-		b3 = truncate_bit(b3, truncate)
+		W1 = truncate_weights(W1, truncate)
+		b1 = truncate_weights(b1, truncate)
+		W3 = truncate_weights(W3, truncate)
+		b3 = truncate_weights(b3, truncate)
 	#print(W1[0,0])
 	parameters = {'W1':W1, 'b1':b1, 'W3':W3, 'b3':b3}
 	return parameters
@@ -230,10 +231,10 @@ def update_conv_parameters(parameters, grads, learning_rate, truncate = 0):
 	# print('before subtract:\n', learning_rate * grads['dW3'][0,0])
 	# print('weights after update:\n', parameters['W3'][0,0])
 	if truncate:
-		parameters['W3'] = truncate_bit(parameters['W3'], truncate)
-		parameters['b3'] = truncate_bit(parameters['b3'], truncate)
-		parameters['W1'] = truncate_bit(parameters['W1'], truncate)
-		parameters['b1'] = truncate_bit(parameters['b1'], truncate)
+		parameters['W3'] = truncate_weights(parameters['W3'], truncate)
+		parameters['b3'] = truncate_weights(parameters['b3'], truncate)
+		parameters['W1'] = truncate_weights(parameters['W1'], truncate)
+		parameters['b1'] = truncate_weights(parameters['b1'], truncate)
 		# print('weights after truncate:\n', parameters['W3'][0,0])
 	return parameters
     
@@ -276,8 +277,9 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             AL, caches = L_model_forward(A4, parameters, truncate = truncate)
             #print(AL[:,0])
             # prevent divide by zero occur.
-            AL = np.where(AL == 0, 0.0015625,AL)
-            #AL = np.where(AL == 1, 0.0015625,AL)
+            if truncate:
+	            AL = np.where(AL == 0,1/256,AL)
+	            AL = np.where(AL == 1,255/256,AL)
             # Compute cost.
             cost = compute_cost(AL,Y[:, j*batch_size:(j+1)*batch_size])
             # Backward propagation.

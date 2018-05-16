@@ -1,13 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-
-def truncate_bit(np_arr, bits, weights_range = 0.4):
-    np_arr *= ((1<<bits)/weights_range)
-    np_arr = np.round(np_arr)
-    np_arr = np.where(np_arr > 255, 255, np_arr)
-    np_arr /= ((1<<bits)/weights_range)
-    return np_arr
+from quantize import *
 
 def sigmoid(Z):
     """
@@ -26,7 +20,7 @@ def sigmoid(Z):
     
     return A, cache
 
-def relu(Z):
+def relu(Z, truncate = False):
     """
     Implement the RELU function.
     Arguments:
@@ -41,6 +35,7 @@ def relu(Z):
     assert(A.shape == Z.shape)
     
     cache = Z 
+
     return A, cache
   
 def softmax(Z):
@@ -162,7 +157,7 @@ def linear_forward(A, W, b, truncate = 0):
     Z = np.dot(W,A)+b
     ### END CODE HERE ###
     if truncate:
-        Z = truncate_bit(Z, truncate)
+        Z = truncate_io(Z)
     assert(Z.shape == (W.shape[0], A.shape[1]))
     cache = (A, W, b)
     
@@ -205,7 +200,7 @@ def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
     assert (A.shape == (W.shape[0], A_prev.shape[1]))
     cache = (linear_cache, activation_cache)
     if truncate:
-        A = truncate_bit(A, truncate)
+        A = truncate_io(A)
     return A, cache
 
 def L_model_forward(X, parameters, truncate = 0):
@@ -409,8 +404,8 @@ def update_parameters(parameters, grads, learning_rate, truncate = 0):
         parameters["W" + str(l+1)] -= learning_rate * grads['dW'+str(l+1)]
         parameters["b" + str(l+1)] -= learning_rate * grads['db'+str(l+1)]
         if truncate:
-            parameters["W" + str(l+1)] = truncate_bit(parameters["W" + str(l+1)], truncate)
-            parameters["b" + str(l+1)] = truncate_bit(parameters["b" + str(l+1)], truncate)
+            parameters["W" + str(l+1)] = truncate_weights(parameters["W" + str(l+1)], truncate)
+            parameters["b" + str(l+1)] = truncate_weights(parameters["b" + str(l+1)], truncate)
     ### END CODE HERE ###
     return parameters
 
