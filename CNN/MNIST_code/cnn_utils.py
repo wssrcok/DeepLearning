@@ -12,9 +12,8 @@ np.random.seed(2)
 
 
 def conv_forward(A_prev, W, b, hparameters, truncate = 0):
-	# W's shape used to be (f, f, n_C_prev, n_C)
+
 	n_C, n_C_prev, f, f = W.shape
-	# A_prev's shape used to be: (m, n_H_prev, n_W_prev, n_C_prev)
 	m, n_C_prev, n_H_prev, n_W_prev = A_prev.shape
 
 	stride = hparameters['stride']
@@ -23,7 +22,6 @@ def conv_forward(A_prev, W, b, hparameters, truncate = 0):
 	W_col = W.reshape(n_C, -1)
 
 	Z = W_col @ A_prev_col + b
-
 	n_H_shape = (n_H_prev - f + 2 * pad) / stride + 1
 	n_W_shape = (n_W_prev - f + 2 * pad) / stride + 1
 	n_H_shape, n_W_shape = int(n_H_shape), int(n_W_shape)
@@ -32,9 +30,8 @@ def conv_forward(A_prev, W, b, hparameters, truncate = 0):
 	Z = Z.transpose(3, 0, 1, 2)
 	# now Z.shape is (m, n_C, n_H_shape, n_W_shape)
 
-	A, old_Z = relu(Z, truncate = truncate)
-	cache = (A_prev, W, b, hparameters, A_prev_col, old_Z)
-	return A, cache
+	cache = (A_prev, W, b, hparameters, A_prev_col)
+	return Z, cache
 
 
 def pool_forward(A_prev, hparameters):
@@ -159,13 +156,18 @@ def initialize_parameters_filter(filter_dim, truncate = 0):
 	n_C3, n_C_prev3, f3, f3 = filter_dim[1]
 	W3 = np.random.randn(n_C3, n_C_prev3, f3, f3) * 0.25
 	b3 = np.zeros((n_C3,1))
+	g1 = 1
+	g3 = 1
+	be1 = 0
+	be3 = 0
 	if truncate:
 		W1 = truncate_weights(W1, truncate)
 		b1 = truncate_weights(b1, truncate)
 		W3 = truncate_weights(W3, truncate)
 		b3 = truncate_weights(b3, truncate)
 	#print(W1[0,0])
-	parameters = {'W1':W1, 'b1':b1, 'W3':W3, 'b3':b3}
+	parameters = {'W1':W1, 'b1':b1, 'W3':W3, 'b3':b3, 
+				  'g1':g1, 'g3':g3, 'be1':be1, 'be3':be3}
 	return parameters
 
 def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
@@ -174,20 +176,31 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
     b1 = parameters['b1']
     W3 = parameters['W3']
     b3 = parameters['b3']
+    g1 = parameters['g1']
+    be1 = parameters['be1']
+    g3 = parameters['g3']
+    be3 = parameters['be3']
+    
     hparameters = {'stride': 1, 'pad': 2}
-    A1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters, truncate = truncate)
+    Z1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters, truncate = truncate)
     caches.append(conv_cache1)
-    #plt.imshow(A1[0,0])
+    # Zn1, bn_cache1, _, _ = batchnorm_forward(Z1, g1, be1)
+    # caches.append(bn_cache1)
+    A1, relu_cache1 = relu(Z1, truncate = truncate)
+    caches.append(relu_cache1)
     hparameters = {'f': 2, 'stride': 2}
     A2, pool_cache2 = pool_forward(A1, hparameters)
     caches.append(pool_cache2)
-#     plt.imshow(A2[0,:,:,0]*5000)
+    
     hparameters = {'stride': 1, 'pad': 2}
-    A3, conv_cache3 = conv_forward(A2, W3, b3, hparameters, truncate = truncate)
+    Z3, conv_cache3 = conv_forward(A2, W3, b3, hparameters, truncate = truncate)
     caches.append(conv_cache3)
+    # Zn3, bn_cache3, _, _ = batchnorm_forward(Z3, g3, be3)
+    # caches.append(bn_cache3)
+    A3, relu_cache3 = relu(Z3, truncate = truncate)
+    caches.append(relu_cache3)
     hparameters = {'f': 2, 'stride': 2}
     A4, pool_cache4 = pool_forward(A3, hparameters)
-    #plt.imshow(A4[0,:,:,9])
     caches.append(pool_cache4)
     return A4, caches
 
@@ -197,22 +210,30 @@ def two_conv_pool_layer_backward(dA4, caches):
     caches -- contains [conv_cache, pool_cache, conv_cache...]
     dA4 -- dJ/dA4 which is equal to dJ/dZ * dZ/dA4 from first FC layer
     '''
-    conv_cache1, pool_cache2, conv_cache3, pool_cache4 = caches
+    conv_cache1,  relu_cache1, pool_cache2, \
+    conv_cache3,  relu_cache3, pool_cache4 = caches
     m = dA4.shape[0]
     assert(dA4.shape[1] == 3136)
     dA4 = dA4.reshape(m,7,7,64)
     conv_grads = {}
     dA3 = pool_backward(dA4, pool_cache4)
-    dZ3 = relu_backward(dA3, conv_cache3[-1])
-    dA2, dW3, db3 = conv_backward(dZ3, conv_cache3[0:-1])
+    dZ3 = relu_backward(dA3, relu_cache3)
+    #dZn3, dgamma3, dbeta3 = batchnorm_backward(dZ3, bn_cache3)
+    dA2, dW3, db3 = conv_backward(dZ3, conv_cache3)
     
     dA1 = pool_backward(dA2, pool_cache2)
-    dZ1 = relu_backward(dA1,  conv_cache1[-1])
-    dA0, dW1, db1 = conv_backward(dZ1, conv_cache1[0:-1])
+    dZ1 = relu_backward(dA1,  relu_cache1)
+    #dZn1, dgamma1, dbeta1 = batchnorm_backward(dZ1, bn_cache1)
+    dA0, dW1, db1 = conv_backward(dZ1, conv_cache1)
     conv_grads["dW3"] = dW3
     conv_grads["db3"] = db3
+    # conv_grads["dg3"] = dgamma3
+    # conv_grads["dbe3"] = dbeta3
     conv_grads["dW1"] = dW1
     conv_grads["db1"] = db1
+    # conv_grads["dg1"] = dgamma1
+    # conv_grads["dbe1"] = dbeta1
+    
     
     return conv_grads
 
@@ -226,6 +247,10 @@ def update_conv_parameters(parameters, grads, learning_rate, truncate = 0):
 	parameters['b3'] -= learning_rate * grads['db3']
 	parameters['W1'] -= learning_rate * grads['dW1']
 	parameters['b1'] -= learning_rate * grads['db1']
+	# parameters['g1'] -= learning_rate * grads['dg1']
+	# parameters['g3'] -= learning_rate * grads['dg3']
+	# parameters['be1'] -= learning_rate * grads['dbe1']
+	# parameters['be3'] -= learning_rate * grads['dbe3']
 	# print('before subtract:\n', learning_rate * grads['dW3'][0,0])
 	# print('weights after update:\n', parameters['W3'][0,0])
 	if truncate:
@@ -233,6 +258,11 @@ def update_conv_parameters(parameters, grads, learning_rate, truncate = 0):
 		parameters['b3'] = truncate_weights(parameters['b3'], truncate)
 		parameters['W1'] = truncate_weights(parameters['W1'], truncate)
 		parameters['b1'] = truncate_weights(parameters['b1'], truncate)
+		# parameters['g1'] = truncate_weights(parameters['g1'], truncate)
+		# parameters['be1'] = truncate_weights(parameters['ge1'], truncate)
+		# parameters['g3'] = truncate_weights(parameters['g3'], truncate)
+		# parameters['be3'] = truncate_weights(parameters['ge3'], truncate)
+
 		# print('weights after truncate:\n', parameters['W3'][0,0])
 	return parameters
     
