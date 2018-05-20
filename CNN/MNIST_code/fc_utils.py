@@ -32,6 +32,35 @@ def batchnorm_backward(dout, cache):
 
     return dX, dgamma, dbeta
 
+def batchnorm_forward_fc(X, gamma, beta):
+    mu = np.mean(X, axis=(0))
+    var = np.var(X, axis=(0))
+
+    X_norm = (X - mu) / np.sqrt(var + 1e-8)
+    out = gamma * X_norm + beta
+
+    cache = (X, X_norm, mu, var, gamma, beta)
+
+    return out, cache, mu, var
+
+def batchnorm_backward_fc(dout, cache):
+    X, X_norm, mu, var, gamma, beta = cache
+
+    N,_ = X.shape
+
+    X_mu = X - mu
+    std_inv = 1. / np.sqrt(var + 1e-8)
+
+    dX_norm = dout * gamma
+    dvar = np.sum(dX_norm * X_mu, axis=(0)) * -.5 * std_inv**3
+    dmu = np.sum(dX_norm * -std_inv, axis=(0)) + dvar * np.mean(-2. * X_mu, axis=(0))
+
+    dX = (dX_norm * std_inv) + (dvar * 2 * X_mu / N) + (dmu / N)
+    dgamma = np.sum(dout * X_norm, axis=(0))
+    dbeta = np.sum(dout, axis=(0))
+
+    return dX, dgamma, dbeta
+
 def sigmoid(Z):
     """
     Implements the sigmoid activation in numpy
@@ -160,6 +189,8 @@ def initialize_parameters_deep(layer_dims, truncate = 0):
         ### START CODE HERE ### (≈ 2 lines of code)
         parameters['W' + str(l)] = np.random.randn(layer_dims[l],layer_dims[l-1])*0.01
         parameters['b' + str(l)] = np.zeros((layer_dims[l],1))
+        parameters['g' + str(l)] = 1
+        parameters['be' + str(l)] = 0
         ### END CODE HERE ###
         
         assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
@@ -167,6 +198,8 @@ def initialize_parameters_deep(layer_dims, truncate = 0):
     if truncate:
         parameters["W" + str(l)] = truncate_weights(parameters["W" + str(l)], truncate)
         parameters["b" + str(l)] = truncate_weights(parameters["b" + str(l)], truncate)
+        parameters["g" + str(l)] = truncate_weights(parameters["g" + str(l)], truncate)
+        parameters["be" + str(l)] = truncate_weights(parameters["be" + str(l)], truncate)
         
     return parameters
 
@@ -193,7 +226,7 @@ def linear_forward(A, W, b, truncate = 0):
     
     return Z, cache
 
-def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
+def linear_activation_forward(A_prev, W, b, g, be, activation, truncate = 0):
     """
     Implement the forward propagation for the LINEAR->ACTIVATION layer
 
@@ -213,22 +246,24 @@ def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
         # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
         ### START CODE HERE ### (≈ 2 lines of code)
         Z, linear_cache = linear_forward(A_prev,W,b, truncate = truncate)
-        A, activation_cache = sigmoid(Z)
+        Zn, bn_cache, _, _ = batchnorm_forward_fc(Z, g, be)
+        A, activation_cache = sigmoid(Zn)
         ### END CODE HERE ###
     
     elif activation == "relu":
         # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
         ### START CODE HERE ### (≈ 2 lines of code)
         Z, linear_cache = linear_forward(A_prev,W,b,truncate = truncate)
-        A, activation_cache = relu(Z, truncate = truncate)
+        Zn, bn_cache, _, _ = batchnorm_forward_fc(Z, g, be)
+        A, activation_cache = relu(Zn, truncate = truncate)
         ### END CODE HERE ###
     elif activation == "softmax":
         Z, linear_cache = linear_forward(A_prev,W,b,truncate = truncate)
-        #print(Z[:,0])
+        bn_cache = 0
         A, activation_cache = softmax(Z)
         #print(A[:,3])
     assert (A.shape == (W.shape[0], A_prev.shape[1]))
-    cache = (linear_cache, activation_cache)
+    cache = (linear_cache, bn_cache, activation_cache)
     return A, cache
 
 def L_model_forward(X, parameters, truncate = 0):
@@ -247,14 +282,15 @@ def L_model_forward(X, parameters, truncate = 0):
 
     caches = []
     A = X
-    L = len(parameters) // 2                  # number of layers in the neural network
+    L = len(parameters) // 4                  # number of layers in the neural network
     
     # Implement [LINEAR -> RELU]*(L-1). Add "cache" to the "caches" list.
     for l in range(1, L):
         A_prev = A 
         ### START CODE HERE ### (≈ 2 lines of code)
-        A, cache = linear_activation_forward(A_prev, parameters['W' + str(l)], 
-                                             parameters['b' + str(l)], "relu")
+        A, cache = linear_activation_forward(A_prev, parameters['W' + str(l)],
+                                             parameters['b' + str(l)], parameters['g' + str(l)],
+                                             parameters['be' + str(l)], "relu")
         # A is truncated in the function
         caches.append(cache)
         ### END CODE HERE ###
@@ -262,7 +298,8 @@ def L_model_forward(X, parameters, truncate = 0):
     # Implement LINEAR -> SIGMOID. Add "cache" to the "caches" list.
     ### START CODE HERE ### (≈ 2 lines of code)
     AL, cache = linear_activation_forward(A, parameters['W' + str(L)], 
-                                          parameters['b' + str(L)], "softmax", truncate = truncate)
+                                          parameters['b' + str(L)], parameters['g' + str(L)],
+                                          parameters['be' + str(L)], "softmax", truncate = truncate)
     # A is truncated in the function
     caches.append(cache)
     ### END CODE HERE ###
@@ -340,26 +377,30 @@ def linear_activation_backward(dA, cache, Y, Y_hat, activation):
     dW -- Gradient of the cost with respect to W (current layer l), same shape as W
     db -- Gradient of the cost with respect to b (current layer l), same shape as b
     """
-    linear_cache, activation_cache = cache
+    linear_cache, bn_cache, activation_cache = cache
     
     if activation == "relu":
         ### START CODE HERE ### (≈ 2 lines of code)
         dZ = relu_backward(dA, activation_cache)
-        dA_prev, dW, db = linear_backward(dZ,linear_cache)
+        dZn, dg, dbe = batchnorm_backward_fc(dZ, bn_cache)
+        dA_prev, dW, db = linear_backward(dZn,linear_cache)
         ### END CODE HERE ###
         
     elif activation == "sigmoid":
         ### START CODE HERE ### (≈ 2 lines of code)
         dZ = sigmoid_backward(dA, activation_cache)
-        dA_prev, dW, db = linear_backward(dZ,linear_cache)
+        dZn, dg, dbe = batchnorm_backward_fc(dZ, bn_cache)
+        dA_prev, dW, db = linear_backward(dZn,linear_cache)
         ### END CODE HERE ###
     elif activation == "softmax":
         ### START CODE HERE ### (≈ 2 lines of code)
         dZ = softmax_backward(Y, Y_hat)
+        dg = 0
+        dbe = 0
         dA_prev, dW, db = linear_backward(dZ,linear_cache)
         ### END CODE HERE ###
     
-    return dA_prev, dW, db
+    return dA_prev, dW, db, dg, dbe
 
 def L_model_backward(AL, Y, caches):
     """
@@ -393,7 +434,7 @@ def L_model_backward(AL, Y, caches):
     ### START CODE HERE ### (approx. 2 lines)
     current_cache = caches[L-1]
     #grads["dA" + str(L-1)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL, current_cache, 'sigmoid')
-    grads["dA" + str(L-1)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL, current_cache, Y, AL, 'softmax')
+    grads["dA" + str(L-1)], grads["dW" + str(L)], grads["db" + str(L)],grads["dg" + str(L)],grads["dbe" + str(L)] = linear_activation_backward(dAL, current_cache, Y, AL, 'softmax')
     ### END CODE HERE ###
     
     # Loop from l=L-2 to l=0
@@ -402,10 +443,12 @@ def L_model_backward(AL, Y, caches):
         # Inputs: "grads["dA" + str(l + 1)], current_cache". Outputs: "grads["dA" + str(l)] , grads["dW" + str(l + 1)] , grads["db" + str(l + 1)] 
         ### START CODE HERE ### (approx. 5 lines)
         current_cache = caches[l]
-        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads["dA" + str(l+1)], current_cache, Y, AL, 'relu')
+        dA_prev_temp, dW_temp, db_temp, dg_temp, dbe_temp = linear_activation_backward(grads["dA" + str(l+1)], current_cache, Y, AL, 'relu')
         grads["dA" + str(l)] = dA_prev_temp
         grads["dW" + str(l + 1)] = dW_temp
         grads["db" + str(l + 1)] = db_temp
+        grads["dg" + str(l + 1)] = dg_temp
+        grads["dbe" + str(l + 1)] = dbe_temp
         ### END CODE HERE ###
 
     return grads
@@ -424,16 +467,20 @@ def update_parameters(parameters, grads, learning_rate, truncate = 0):
                   parameters["b" + str(l)] = ...
     """
     
-    L = len(parameters) // 2 # number of layers in the neural network
+    L = len(parameters) // 4 # number of layers in the neural network
 
     # Update rule for each parameter. Use a for loop.
     ### START CODE HERE ### (≈ 3 lines of code)
     for l in range(L):
         parameters["W" + str(l+1)] -= learning_rate * grads['dW'+str(l+1)]
         parameters["b" + str(l+1)] -= learning_rate * grads['db'+str(l+1)]
+        parameters["g" + str(l+1)] -= learning_rate * grads['dg'+str(l+1)]
+        parameters["be" + str(l+1)] -= learning_rate * grads['dbe'+str(l+1)]
         if truncate:
             parameters["W" + str(l+1)] = truncate_weights(parameters["W" + str(l+1)], truncate)
             parameters["b" + str(l+1)] = truncate_weights(parameters["b" + str(l+1)], truncate)
+            parameters["g" + str(l+1)] = truncate_weights(parameters["g" + str(l+1)], truncate)
+            parameters["be" + str(l+1)] = truncate_weights(parameters["be" + str(l+1)], truncate)
     ### END CODE HERE ###
     return parameters
 
