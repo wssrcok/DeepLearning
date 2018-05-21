@@ -1,7 +1,8 @@
 import h5py
 import numpy as np
 import tensorflow as tf
-import math
+from layers.cnn_layers import *
+from layers.fc_layers import *
 
 def load_dataset():
     train_dataset = h5py.File('datasets/train_signs.h5', "r")

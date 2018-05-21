@@ -33,8 +33,8 @@ def relu(Z, truncate = False):
     assert(A.shape == Z.shape)
     
     cache = Z 
-    if truncate:
-        A = truncate_io(A)
+    # if truncate:
+    #     A = truncate_io(A)
     return A, cache
   
 def softmax(Z):

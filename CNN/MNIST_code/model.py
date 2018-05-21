@@ -2,6 +2,7 @@ import numpy as np
 from layers.cnn_layers import *
 from layers.fc_layers import *
 from layers.weights import *
+import matplotlib.pyplot as plt
 
 def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters = {}, parameters_conv = {}, batch_size = 64, learning_rate = 0.0075, num_iterations = 3000, print_cost=False):
     """
