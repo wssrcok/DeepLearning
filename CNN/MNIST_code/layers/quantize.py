@@ -14,15 +14,6 @@ def truncate_weights(w, bits, weights_range = 2):
     q = np.clip(np.round(n * w)/n, -weights_range/2, weights_range/2-1/n) # [-1,1)
     return q
 
-# def truncate_io(np_arr):
-#     n = 256
-#     np_arr *= n
-#     np_arr = np.round(np_arr)
-#     np_arr = np.where(np_arr >= n, n-1, np_arr)
-#     #print('after\n',np_arr[0,0])
-#     np_arr /= n
-#     return np_arr
-
 def truncate_io(np_arr):
     _max = np.ndarray.max(np_arr)
     ratio = 256/_max

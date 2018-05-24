@@ -47,12 +47,12 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             # Update parameters.
             parameters = update_parameters(parameters, grads, learning_rate, truncate = truncate)
             parameters_conv = update_conv_parameters(parameters_conv, conv_grads, learning_rate, truncate = truncate)
-            if print_cost:# and j % 300 == 0:
+            if print_cost: # and j % 1 == 0:
                 print ("Cost after iteration %i, batch %i: %f" %(i, j, cost))
-            if print_cost and j % 1 == 0:
+            if print_cost:# and j % 1 == 0:
                 costs.append(cost)
-        if print_cost and i % 1 == 0:
-            print ("Cost after iteration %i: %f" %(i, cost))
+        if print_cost:# and i % 1 == 0:
+            print('Epoch %i, Done!' %(i))
     #plot the cost
     plt.plot(np.squeeze(costs))
     plt.ylabel('cost')

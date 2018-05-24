@@ -168,17 +168,17 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
 	b1 = parameters['b1']
 	W3 = parameters['W3']
 	b3 = parameters['b3']
-	g1 = parameters['g1']
-	be1 = parameters['be1']
-	g3 = parameters['g3']
-	be3 = parameters['be3']
+	# g1 = parameters['g1']
+	# be1 = parameters['be1']
+	# g3 = parameters['g3']
+	# be3 = parameters['be3']
 	
 	hparameters = {'stride': 1, 'pad': 2}
 	Z1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters, truncate = truncate)
 	caches.append(conv_cache1)
-	Zn1, bn_cache1, _, _ = batchnorm_forward_conv(Z1, g1, be1)
-	caches.append(bn_cache1)
-	A1, relu_cache1 = relu(Zn1, truncate = truncate)
+	# Zn1, bn_cache1, _, _ = batchnorm_forward_conv(Z1, g1, be1)
+	# caches.append(bn_cache1)
+	A1, relu_cache1 = relu(Z1, truncate = truncate)
 	caches.append(relu_cache1)
 	hparameters = {'f': 2, 'stride': 2}
 	A2, pool_cache2 = pool_forward(A1, hparameters)
@@ -187,9 +187,9 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
 	hparameters = {'stride': 1, 'pad': 2}
 	Z3, conv_cache3 = conv_forward(A2, W3, b3, hparameters, truncate = truncate)
 	caches.append(conv_cache3)
-	Zn3, bn_cache3, _, _ = batchnorm_forward_conv(Z3, g3, be3)
-	caches.append(bn_cache3)
-	A3, relu_cache3 = relu(Zn3, truncate = truncate)
+	# Zn3, bn_cache3, _, _ = batchnorm_forward_conv(Z3, g3, be3)
+	# caches.append(bn_cache3)
+	A3, relu_cache3 = relu(Z3, truncate = truncate)
 	caches.append(relu_cache3)
 	hparameters = {'f': 2, 'stride': 2}
 	A4, pool_cache4 = pool_forward(A3, hparameters)
@@ -202,29 +202,29 @@ def two_conv_pool_layer_backward(dA4, caches):
 	caches -- contains [conv_cache, pool_cache, conv_cache...]
 	dA4 -- dJ/dA4 which is equal to dJ/dZ * dZ/dA4 from first FC layer
 	'''
-	conv_cache1, bn_cache1, relu_cache1, pool_cache2, \
-	conv_cache3, bn_cache3, relu_cache3, pool_cache4 = caches
+	conv_cache1,  relu_cache1, pool_cache2, \
+	conv_cache3,  relu_cache3, pool_cache4 = caches
 	m = dA4.shape[0]
 	assert(dA4.shape[1] == 3136)
 	dA4 = dA4.reshape(m,7,7,64)
 	conv_grads = {}
 	dA3 = pool_backward(dA4, pool_cache4)
 	dZ3 = relu_backward(dA3, relu_cache3)
-	dZn3, dgamma3, dbeta3 = batchnorm_backward_conv(dZ3, bn_cache3)
-	dA2, dW3, db3 = conv_backward(dZn3, conv_cache3)
+	# dZn3, dgamma3, dbeta3 = batchnorm_backward_conv(dZ3, bn_cache3)
+	dA2, dW3, db3 = conv_backward(dZ3, conv_cache3)
 	
 	dA1 = pool_backward(dA2, pool_cache2)
 	dZ1 = relu_backward(dA1,  relu_cache1)
-	dZn1, dgamma1, dbeta1 = batchnorm_backward_conv(dZ1, bn_cache1)
-	dA0, dW1, db1 = conv_backward(dZn1, conv_cache1)
+	# dZn1, dgamma1, dbeta1 = batchnorm_backward_conv(dZ1, bn_cache1)
+	dA0, dW1, db1 = conv_backward(dZ1, conv_cache1)
 	conv_grads["dW3"] = dW3
 	conv_grads["db3"] = db3
-	conv_grads["dg3"] = dgamma3
-	conv_grads["dbe3"] = dbeta3
 	conv_grads["dW1"] = dW1
 	conv_grads["db1"] = db1
-	conv_grads["dg1"] = dgamma1
-	conv_grads["dbe1"] = dbeta1
+	# conv_grads["dg3"] = dgamma3
+	# conv_grads["dbe3"] = dbeta3
+	# conv_grads["dg1"] = dgamma1
+	# conv_grads["dbe1"] = dbeta1
 	
 	
 	return conv_grads
