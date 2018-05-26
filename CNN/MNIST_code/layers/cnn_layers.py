@@ -63,24 +63,20 @@ def pool_forward(A_prev, hparameters):
 def conv_backward(dZ, cache):
 	'''
 	Arguments:
-	dZ -- numpy array of shape (m, n_H, n_W, n_C)
+	dZ -- numpy array of shape (m, n_C, n_H, n_W) 
 	cache -- cache of values needed for the conv_backward(), output of conv_forward()
 
 	Returns:
 	dA_prev -- gradient of the cost with respect to the input of the conv layer (A_prev),
-			   numpy array of shape (m, n_H_prev, n_W_prev, n_C_prev)
+			   numpy array of shape (m, n_C_prev, n_H_prev, n_W_prev)
 	dW -- gradient of the cost with respect to the weights of the conv layer (W)
-		  numpy array of shape (f, f, n_C_prev, n_C)
+		  numpy array of shape (n_C_prev, n_C, f, f)
 	db -- gradient of the cost with respect to the biases of the conv layer (b)
-		  numpy array of shape (1, 1, 1, n_C)
+		  numpy array of shape (n_C, 1)
 	'''
-	#cache have the dimension: (A_prev, W, b, hparameters, A_prev_col)
-	A_prev, W, b, hparameters, A_prev_col = cache
-	# W.shape used to be (f,f,n_C_prev, n_C)
-	n_C, n_C_prev, f, f = W.shape
 
-	#dZ -- numpy array of shape (m, n_H, n_W, n_C) 
-	# however, we want dZ to be (m, n_C, n_H, n_W) 
+	A_prev, W, b, hparameters, A_prev_col = cache
+	n_C, n_C_prev, f, f = W.shape 
 
 	db = np.sum(dZ, axis=(0, 2, 3))
 	db = db.reshape(n_C, -1)
@@ -93,6 +89,7 @@ def conv_backward(dZ, cache):
 
 	W_reshape = W.reshape(n_C, -1)
 	dA_prev_col = W_reshape.T @ dZ_reshaped
+	# turn column to image
 	dA_prev = col2im_indices(dA_prev_col, A_prev.shape, f, f, padding=pad, stride=stride)
 	return dA_prev, dW, db
 
@@ -172,28 +169,35 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
 	# be1 = parameters['be1']
 	# g3 = parameters['g3']
 	# be3 = parameters['be3']
-	
+	#----------------------------Conv_BN_relu_Pool_1--------------------------------------
 	hparameters = {'stride': 1, 'pad': 2}
 	Z1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters, truncate = truncate)
 	caches.append(conv_cache1)
+
 	# Zn1, bn_cache1, _, _ = batchnorm_forward_conv(Z1, g1, be1)
 	# caches.append(bn_cache1)
+
 	A1, relu_cache1 = relu(Z1, truncate = truncate)
 	caches.append(relu_cache1)
+
 	hparameters = {'f': 2, 'stride': 2}
 	A2, pool_cache2 = pool_forward(A1, hparameters)
 	caches.append(pool_cache2)
-	
+	#---------------------------Conv_BN_relu_Pool_2--------------------------------------	
 	hparameters = {'stride': 1, 'pad': 2}
 	Z3, conv_cache3 = conv_forward(A2, W3, b3, hparameters, truncate = truncate)
 	caches.append(conv_cache3)
+
 	# Zn3, bn_cache3, _, _ = batchnorm_forward_conv(Z3, g3, be3)
 	# caches.append(bn_cache3)
+
 	A3, relu_cache3 = relu(Z3, truncate = truncate)
 	caches.append(relu_cache3)
+
 	hparameters = {'f': 2, 'stride': 2}
 	A4, pool_cache4 = pool_forward(A3, hparameters)
 	caches.append(pool_cache4)
+	#------------------------------------------------------------------------------------
 	return A4, caches
 
 def two_conv_pool_layer_backward(dA4, caches):
@@ -208,15 +212,17 @@ def two_conv_pool_layer_backward(dA4, caches):
 	assert(dA4.shape[1] == 3136)
 	dA4 = dA4.reshape(m,7,7,64)
 	conv_grads = {}
+	#------------------------Pool_relu_BN_Conv_2----------------------------------------
 	dA3 = pool_backward(dA4, pool_cache4)
 	dZ3 = relu_backward(dA3, relu_cache3)
 	# dZn3, dgamma3, dbeta3 = batchnorm_backward_conv(dZ3, bn_cache3)
 	dA2, dW3, db3 = conv_backward(dZ3, conv_cache3)
-	
+	#------------------------Pool_relu_BN_Conv_1----------------------------------------
 	dA1 = pool_backward(dA2, pool_cache2)
 	dZ1 = relu_backward(dA1,  relu_cache1)
 	# dZn1, dgamma1, dbeta1 = batchnorm_backward_conv(dZ1, bn_cache1)
 	dA0, dW1, db1 = conv_backward(dZ1, conv_cache1)
+	#------------------------------------------------------------------------------------
 	conv_grads["dW3"] = dW3
 	conv_grads["db3"] = db3
 	conv_grads["dW1"] = dW1
