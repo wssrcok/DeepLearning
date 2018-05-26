@@ -7,7 +7,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import scipy
-from PIL import Image
+#from PIL import Image
 from scipy import ndimage
 from utils import *
 from model import cnn_model
