@@ -30,7 +30,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
             #flatten
             cout = cout.reshape(batch_size,-1).T
             # fc forward
-            fc_output, caches = L_model_forward(cout, parameters, truncate = truncate)
+            fc_out, caches = L_model_forward(cout, parameters, truncate = truncate)
             # prevent divide by zero occur.
             if truncate:
 	            fc_out = np.where(fc_out == 0,1/256,fc_out)

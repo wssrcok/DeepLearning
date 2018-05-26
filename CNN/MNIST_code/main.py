@@ -31,5 +31,5 @@ eval_data = eval_data.reshape(10000,1,28,28)
 # training model
 filter_dims = [(32,1,5,5),(64,32,5,5)]
 layers_dims = [3136, 1024, classes] #  2-layer model
-parameters, parameters_conv, grads, conv_grads = cnn_model(input_layer[0:4096], train_labels[0:4096], filter_dims, layers_dims, 
-                                                           truncate = 0, batch_size = 256, learning_rate = 0.02, num_iterations = 100, print_cost = True)
+parameters, parameters_conv, grads, conv_grads = cnn_model(input_layer[0:256], train_labels[0:256], filter_dims, layers_dims, 
+                                                           truncate = 0, batch_size = 32, learning_rate = 0.02, num_iterations = 10, print_cost = True)
