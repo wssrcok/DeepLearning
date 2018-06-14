@@ -5,20 +5,20 @@ from layers.cnn_layers import *
 from layers.fc_layers import *
 
 def load_dataset():
-    train_dataset = h5py.File('datasets/train_signs.h5', "r")
-    train_set_x_orig = np.array(train_dataset["train_set_x"][:]) # your train set features
-    train_set_y_orig = np.array(train_dataset["train_set_y"][:]) # your train set labels
+    # Load training and eval data
+    mnist = tf.contrib.learn.datasets.load_dataset("mnist")
+    train_data = mnist.train.images # Returns np.array
+    classes = 10
+    train_labels = np.asarray(mnist.train.labels, dtype=np.int32)
+    train_labels = one_hot_label(classes, train_labels)
+    eval_data = mnist.test.images # Returns np.array
+    eval_labels_old = np.asarray(mnist.test.labels, dtype=np.int32)
+    eval_labels = one_hot_label(classes, eval_labels_old)
+    features = train_data.shape[0]
 
-    test_dataset = h5py.File('datasets/test_signs.h5', "r")
-    test_set_x_orig = np.array(test_dataset["test_set_x"][:]) # your test set features
-    test_set_y_orig = np.array(test_dataset["test_set_y"][:]) # your test set labels
-
-    classes = np.array(test_dataset["list_classes"][:]) # the list of classes
-    
-    train_set_y_orig = train_set_y_orig.reshape((1, train_set_y_orig.shape[0]))
-    test_set_y_orig = test_set_y_orig.reshape((1, test_set_y_orig.shape[0]))
-    
-    return train_set_x_orig, train_set_y_orig, test_set_x_orig, test_set_y_orig, classes
+    train_data = train_data.reshape(55000,1,28,28)
+    eval_data = eval_data.reshape(10000,1,28,28)
+    return train_data, train_labels, eval_data, eval_labels, classes
 
 def one_hot_label(classes, label):
     """
