@@ -52,6 +52,35 @@ def update_conv_parameters(parameters, grads, learning_rate, truncate = 0):
 		# parameters['be3'] = truncate_weights(parameters['be3'], truncate)
 	return parameters
 
+def initialize_parameters_filter_general(filter_dim, truncate = 0):
+	'''
+	building a filter
+	Arguments:
+	filter_dim -- dimension of filter:[(f,f,n_C_prev, n_C),(f,f,n_C_prev, n_C)]
+	Returns: parameters
+	'''
+	parameters = {}
+	L = len(filter_dim)
+	for l in range(L):
+		n_C, n_C_prev, f, f = filter_dim[l]
+		parameters['W' + str(l+1)] = np.random.randn(n_C, n_C_prev, f, f) * 0.25
+		parameters['b' + str(l+1)] = np.zeros((n_C,1))
+		if truncate:
+			parameters["W" + str(l+1)] = truncate_weights(parameters["W" + str(l+1)], truncate)
+	return parameters
+
+def update_conv_parameters_general(parameters, grads, learning_rate, truncate = 0):
+	'''
+	'''
+	L = len(parameters) // 2
+	for l in range(L):
+		parameters["W" + str(l+1)] -= learning_rate * grads['dW'+str(l+1)]
+		parameters["b" + str(l+1)] -= learning_rate * grads['db'+str(l+1)]
+		if truncate:
+			parameters["W" + str(l+1)] = truncate_weights(parameters["W" + str(l+1)], truncate)
+			parameters["b" + str(l+1)] = truncate_weights(parameters["b" + str(l+1)], truncate)
+	return parameters
+
 def initialize_parameters_deep(layer_dims, truncate = 0):
 	"""
 	Arguments:

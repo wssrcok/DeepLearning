@@ -9,7 +9,7 @@ import matplotlib.mlab as mlab
 import scipy
 from scipy import ndimage
 from utils import load_dataset
-from model import cnn_model
+from model import cnn_model_general, cnn_model
 
 np.random.seed(2)
 
@@ -19,7 +19,7 @@ def main():
 	# two conv layers and 2 fc layers.
 	filter_dims = [(32,1,5,5),(64,32,5,5)] 
 	fc_dims = [3136, 1024, classes]
-	parameters_fc, parameters_conv, grads_fc, conv_grads = cnn_model(
+	parameters_fc, parameters_conv, grads_fc, conv_grads = cnn_model_general(
 		train_data[0:256], 
 		train_labels[0:256], 
 		filter_dims, 

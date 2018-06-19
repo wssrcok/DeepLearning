@@ -4,7 +4,67 @@ from layers.fc_layers import *
 from layers.weights import *
 import matplotlib.pyplot as plt
 
-def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters = {}, parameters_conv = {}, batch_size = 64, learning_rate = 0.0075, num_iterations = 3000, print_cost=False):
+def cnn_model_general(input_feature, label, filter_dims, layers_dims, truncate = 0, parameters = {}, parameters_conv = {}, batch_size = 64, learning_rate = 0.01, num_iterations = 100, print_cost=False):
+    """
+    Arguments:
+    
+    Returns:
+    """
+    costs = []             # keep track of cost
+    
+    # Parameters initialization
+    if len(parameters) == 0:
+        parameters_conv = initialize_parameters_filter_general(filter_dims, truncate = truncate)
+        parameters = initialize_parameters_deep(layers_dims, truncate = truncate)
+
+    m = input_feature.shape[0]                    # m: total number of training dataset
+    num_batchs = m // batch_size
+    
+    # Loop (gradient descent)
+    for i in range(0, num_iterations):
+        # right now batch is not randomized
+        for j in range(num_batchs):
+            # conv forward
+            input_batch = input_feature[j*batch_size:(j+1)*batch_size]
+            cout, conv_caches = conv_pool_forward_general(input_batch, parameters_conv, truncate = truncate)
+            #flatten
+            (a,b,c,d) = cout.shape
+            cout = cout.reshape(batch_size,-1).T
+            # fc forward
+            fc_out, caches = L_model_forward(cout, parameters, truncate = truncate)
+            # prevent divide by zero occur.
+            if truncate:
+                fc_out = np.where(fc_out == 0,1/256,fc_out)
+                fc_out = np.where(fc_out == 1,255/256,fc_out)
+            # Compute cost.
+            cost = compute_cost(fc_out,label[:, j*batch_size:(j+1)*batch_size])
+            # fc backward
+            grads = L_model_backward(fc_out, label[:, j*batch_size:(j+1)*batch_size], caches)
+            # unflatten
+            dcout = grads['dA0'].T
+            dcout = dcout.reshape(a,b,c,d)
+            # conv backward
+            conv_grads = conv_pool_backward_general(dcout, conv_caches)
+            # Update parameters.
+            parameters = update_parameters(parameters, grads, learning_rate, truncate = truncate)
+            parameters_conv = update_conv_parameters_general(parameters_conv, conv_grads, learning_rate, truncate = truncate)
+            # print cost
+            if print_cost: # and j % 1 == 0:
+                print ("Cost after iteration %i, batch %i: %f" %(i, j, cost))
+            if print_cost:# and j % 1 == 0:
+                costs.append(cost)
+        if print_cost:# and i % 1 == 0:
+            print('Epoch %i, Done!' %(i))
+    #plot the cost
+    plt.plot(np.squeeze(costs))
+    plt.ylabel('cost')
+    plt.xlabel('iterations (per tens)')
+    plt.title("Learning rate =" + str(learning_rate))
+    plt.show()
+    
+    return parameters, parameters_conv, grads, conv_grads
+
+def cnn_model(input_feature, label, filter_dims, layers_dims, truncate = 0, parameters = {}, parameters_conv = {}, batch_size = 64, learning_rate = 0.01, num_iterations = 100, print_cost=False):
     """
     Arguments:
     
@@ -17,7 +77,7 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
         parameters_conv = initialize_parameters_filter(filter_dims, truncate = truncate)
         parameters = initialize_parameters_deep(layers_dims, truncate = truncate)
 
-    m = input_layer.shape[0]                    # m: total number of training dataset
+    m = input_feature.shape[0]                    # m: total number of training dataset
     num_batchs = m // batch_size
     
     # Loop (gradient descent)
@@ -25,9 +85,10 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
     	# right now batch is not randomized
         for j in range(num_batchs):
             # conv forward
-            input_batch = input_layer[j*batch_size:(j+1)*batch_size]
+            input_batch = input_feature[j*batch_size:(j+1)*batch_size]
             cout, conv_caches = two_conv_pool_layer_forward(input_batch, parameters_conv, truncate = truncate)
             #flatten
+            (a,b,c,d) = cout.shape
             cout = cout.reshape(batch_size,-1).T
             # fc forward
             fc_out, caches = L_model_forward(cout, parameters, truncate = truncate)
@@ -36,11 +97,12 @@ def cnn_model(input_layer, Y, filter_dims, layers_dims, truncate = 0, parameters
 	            fc_out = np.where(fc_out == 0,1/256,fc_out)
 	            fc_out = np.where(fc_out == 1,255/256,fc_out)
             # Compute cost.
-            cost = compute_cost(fc_out,Y[:, j*batch_size:(j+1)*batch_size])
+            cost = compute_cost(fc_out,label[:, j*batch_size:(j+1)*batch_size])
             # fc backward
-            grads = L_model_backward(fc_out, Y[:, j*batch_size:(j+1)*batch_size], caches)
+            grads = L_model_backward(fc_out, label[:, j*batch_size:(j+1)*batch_size], caches)
             # unflatten
             dcout = grads['dA0'].T
+            dcout = dcout.reshape(a,b,c,d)
             # conv backward
             conv_grads = two_conv_pool_layer_backward(dcout, conv_caches)
             # Update parameters.

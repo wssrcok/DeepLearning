@@ -5,7 +5,7 @@ from layers.general_layers import relu, relu_backward
 
 np.random.seed(2)
 
-def conv_forward(A_prev, W, b, hparameters, truncate = 0):
+def conv_forward(A_prev, W, b, hparameters = {'stride': 1, 'pad': 2}, truncate = 0):
 
 	n_C, n_C_prev, f, f = W.shape
 	m, n_C_prev, n_H_prev, n_W_prev = A_prev.shape
@@ -28,7 +28,7 @@ def conv_forward(A_prev, W, b, hparameters, truncate = 0):
 	return Z, cache
 
 
-def pool_forward(A_prev, hparameters):
+def pool_forward(A_prev, hparameters = {'f': 2, 'stride': 2}):
 	# Let say our input X is 5x10x28x28
 	# Our pooling parameter are: size = 2x2, stride = 2, padding = 0
 	# i.e. result of 10 filters of 3x3 applied to 5 imgs of 28x28 with stride = 1 and padding = 1
@@ -109,8 +109,7 @@ def pool_backward(dA, cache):
 	stride = hparameters["stride"]
 
 	#dA.shape is m,n_H,n_W,n_C
-	(m, n_H, n_W, n_C) = dA.shape
-	dA = dA.transpose(0,3,1,2)
+	(m, n_C, n_H, n_W) = dA.shape
 	# 5x10x14x14 => 14x14x5x10, then flattened to 1x9800
 	# Transpose step is necessary to get the correct arrangement
 	dA_flat = dA.transpose(2, 3, 0, 1).ravel()
@@ -159,7 +158,43 @@ def batchnorm_backward_conv(dout, cache):
 
 	return dX, dgamma, dbeta
 
-def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
+
+
+def conv_pool_forward_general(input_feature, parameters, truncate = 0):
+	caches = []
+	L = len(parameters) // 2
+	A = input_feature
+	for l in range(1, L+1):
+		A_prev = A		
+		conv_out, conv_cache = conv_forward(A_prev, parameters['W'+str(l)], parameters['b'+str(l)], 
+									        truncate = truncate)
+
+		relu_out, relu_cache = relu(conv_out, truncate = truncate)
+		A, pool_cache = pool_forward(relu_out)
+
+		caches.append((conv_cache, relu_cache, pool_cache))
+
+	return A, caches
+
+def conv_pool_backward_general(dAL, caches):
+	'''
+	'''
+	L = len(caches) # number of layers
+	grads = {}
+	grads["dA" + str(L)] = dAL
+
+	for l in reversed(range(L)): # L-2 ... 0
+		conv_cache, relu_cache, pool_cache = caches[l]
+		dP = pool_backward(grads["dA" + str(l+1)], pool_cache)
+		dR = relu_backward(dP, relu_cache)
+		dA, dW, db = conv_backward(dR, conv_cache)
+		grads["dA" + str(l)] = dA
+		grads["dW" + str(l+1)] = dW
+		grads["db" + str(l+1)] = db
+	
+	return grads
+
+def two_conv_pool_layer_forward(input_feature, parameters, truncate = 0):
 	caches = []
 	W1 = parameters['W1']
 	b1 = parameters['b1']
@@ -170,8 +205,7 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
 	# g3 = parameters['g3']
 	# be3 = parameters['be3']
 	#----------------------------Conv_BN_relu_Pool_1--------------------------------------
-	hparameters = {'stride': 1, 'pad': 2}
-	Z1, conv_cache1 = conv_forward(input_layer, W1, b1, hparameters, truncate = truncate)
+	Z1, conv_cache1 = conv_forward(input_feature, W1, b1, truncate = truncate)
 	caches.append(conv_cache1)
 
 	# Zn1, bn_cache1, _, _ = batchnorm_forward_conv(Z1, g1, be1)
@@ -180,12 +214,10 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
 	A1, relu_cache1 = relu(Z1, truncate = truncate)
 	caches.append(relu_cache1)
 
-	hparameters = {'f': 2, 'stride': 2}
-	A2, pool_cache2 = pool_forward(A1, hparameters)
+	A2, pool_cache2 = pool_forward(A1)
 	caches.append(pool_cache2)
 	#---------------------------Conv_BN_relu_Pool_2--------------------------------------	
-	hparameters = {'stride': 1, 'pad': 2}
-	Z3, conv_cache3 = conv_forward(A2, W3, b3, hparameters, truncate = truncate)
+	Z3, conv_cache3 = conv_forward(A2, W3, b3, truncate = truncate)
 	caches.append(conv_cache3)
 
 	# Zn3, bn_cache3, _, _ = batchnorm_forward_conv(Z3, g3, be3)
@@ -194,8 +226,7 @@ def two_conv_pool_layer_forward(input_layer, parameters, truncate = 0):
 	A3, relu_cache3 = relu(Z3, truncate = truncate)
 	caches.append(relu_cache3)
 
-	hparameters = {'f': 2, 'stride': 2}
-	A4, pool_cache4 = pool_forward(A3, hparameters)
+	A4, pool_cache4 = pool_forward(A3)
 	caches.append(pool_cache4)
 	#------------------------------------------------------------------------------------
 	return A4, caches
@@ -207,10 +238,7 @@ def two_conv_pool_layer_backward(dA4, caches):
 	dA4 -- dJ/dA4 which is equal to dJ/dZ * dZ/dA4 from first FC layer
 	'''
 	conv_cache1,  relu_cache1, pool_cache2, \
-	conv_cache3,  relu_cache3, pool_cache4 = caches
-	m = dA4.shape[0]
-	assert(dA4.shape[1] == 3136)
-	dA4 = dA4.reshape(m,7,7,64)
+	conv_cache3,  relu_cache3, pool_cache4 = caches	
 	conv_grads = {}
 	#------------------------Pool_relu_BN_Conv_2----------------------------------------
 	dA3 = pool_backward(dA4, pool_cache4)
