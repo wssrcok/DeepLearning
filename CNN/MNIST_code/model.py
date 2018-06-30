@@ -23,6 +23,7 @@ def cnn_model_general(input_feature, label, filter_dims, layers_dims, truncate =
     # Loop (gradient descent)
     for i in range(0, num_iterations):
         # right now batch is not randomized
+        # TODO: randomize batch every epoch.
         for j in range(num_batchs):
             # conv forward
             input_batch = input_feature[j*batch_size:(j+1)*batch_size]
