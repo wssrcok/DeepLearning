@@ -84,7 +84,6 @@ def linear_activation_forward(A_prev, W, b, activation, truncate = 0):
 		### END CODE HERE ###
 	elif activation == "softmax":
 		Z, linear_cache = linear_forward(A_prev,W,b,truncate = truncate)
-		bn_cache = 0
 		A, activation_cache = softmax(Z)
 		#print(A[:,3])
 	assert (A.shape == (W.shape[0], A_prev.shape[1]))
@@ -222,7 +221,7 @@ def L_model_backward(AL, Y, caches):
 	# Initializing the backpropagation
 	### START CODE HERE ### (1 line of code)
 
-	dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL)) 
+	dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
 	### END CODE HERE ###
 	
 	# Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "dAL, current_cache". Outputs: "grads["dAL-1"], grads["dWL"], grads["dbL"]

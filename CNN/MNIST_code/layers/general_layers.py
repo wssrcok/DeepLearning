@@ -47,8 +47,8 @@ def softmax(Z):
 	cache -- a python dictionary containing "A" ; stored for computing the backward pass efficiently
 	"""
 
-	Z_exp = np.exp(Z);
-	den = np.sum(Z_exp, axis = 0);
+	Z_exp = np.exp(Z)
+	den = np.sum(Z_exp, axis = 0)
 	A = Z_exp / den;
 
 	assert(A.shape == Z.shape)
@@ -96,15 +96,5 @@ def sigmoid_backward(dA, cache):
 	return dZ
   
 def softmax_backward(Y, Y_hat):
-	"""
-	Implement the backward propagation for a single SIGMOID unit.
-	Arguments:
-	
-	Returns:
-	dZ -- Gradient of the cost with respect to Z
-	"""
-	
 	dZ = Y_hat - Y
-	
-	
 	return dZ
